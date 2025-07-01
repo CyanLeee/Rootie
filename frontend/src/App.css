@@ -1,0 +1,301 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #222222;
+  color: #ffffff;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+/* 输入框节点样式 - 简洁设计 */
+.input-node {
+  background: transparent;
+  border: none;
+  border-radius: 30px;
+  padding: 0;
+  width: 600px; /* 固定宽度 */
+  box-shadow: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: auto; /* 高度自适应 */
+}
+
+.input-node-container {
+  display: flex;
+  align-items: center;
+  background-color: #000000;
+  border: 2px solid #c0c0c0;
+  border-radius: 30px;
+  padding: 4px 8px;
+  width: 100%;
+  position: relative;
+  min-height: 60px; /* 最小高度 */
+}
+
+.canvas-input {
+  flex-grow: 1;
+  background-color: transparent;
+  border: none;
+  color: #fff;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 400;
+  outline: none;
+  border-radius: 40px;
+  white-space: pre-wrap; /* 允许换行 */
+  word-wrap: break-word; /* 自动换行 */
+  overflow-y: auto; /* 内容溢出时显示滚动条 */
+  max-height: 250px; /* 限制最大高度 */
+  line-height: 1.5; /* 调整行距 */
+}
+
+.canvas-input::placeholder {
+  color: #888;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.canvas-send-button {
+  background: #FFFFFF;
+  border: none;
+  border-radius: 50%;
+  color: #000000;
+  width: 40px; /* 固定宽度 */
+  height: 40px; /* 固定高度 */
+  min-width: 40px; /* 最小宽度，防止压缩 */
+  min-height: 40px; /* 最小高度，防止压缩 */
+  display: flex;
+  align-items: center; /* 垂直居中 */
+  justify-content: center;
+  cursor: pointer;
+  font-size: 22px;
+  font-weight: 700;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0; /* 防止按钮被压缩 */
+  padding: 0;
+  line-height: 1;
+}
+
+.canvas-send-button:hover {
+  background: #e0e0e0;
+}
+
+/* 合并的问答节点样式 - 简洁设计 */
+.conversation-node {
+  background: #000000;
+  border: 2px solid #444;
+  border-radius: 20px;
+  padding: 20px;
+  width: 600px; /* 固定宽度 */
+  height: auto; /* 高度自适应 */
+  overflow-y: auto; /* 内容溢出时显示滚动条 */
+  max-height: 1250px; /* 限制最大高度 */
+}
+
+.question-section {
+  margin-bottom: 16px;
+  background: #000000;
+  border-radius: 0px;
+}
+
+.question-label {
+  font-size: 24px;
+  font-weight: normal;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.question-content {
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.answer-section {
+  background: #000000;
+  border-radius: 0px;
+ }
+
+.answer-label {
+  font-size: 24px;
+  font-weight: normal;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.answer-content {
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+  white-space: pre-line;
+}
+
+.node-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.node-actions span {
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  background: rgba(255, 68, 68, 0.1);
+}
+
+.node-actions span:hover {
+  background: rgba(255, 68, 68, 0.2);
+}
+
+/* 话题分支按钮样式 */
+.branch-button {
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid #ffffff;
+  border-radius: 10px;
+  color: #ffffff;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+
+.branch-button:hover {
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  border: 1px solid #ffffff
+}
+
+/* React Flow 样式覆盖 - 确保箭头显示 */
+.react-flow__edge-path {
+  stroke: #FF0004 !important;
+  stroke-width: 2 !important;
+}
+
+.react-flow__arrowhead {
+  fill: #FF0004 !important;
+}
+
+.react-flow__edge .react-flow__edge-path {
+  stroke: #FF0004 !important;
+}
+
+/* 允许在指定元素上选择文本 */
+.nodrag {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* 强制覆盖React Flow节点的默认样式 */
+
+
+.react-flow__node-conversation .conversation-node {
+  background: #000000 !important;
+  border: 1px solid #444 !important;
+}
+
+/* 确保连接点显示并居中 */
+.react-flow__handle {
+  background: #FF0004 !important;
+  border: 2px solid #FF0004 !important;
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.react-flow__handle-top {
+  top: -4px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}
+
+.react-flow__handle-bottom {
+  bottom: -4px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}
+
+.react-flow__controls-button {
+  background: #000000 !important;
+  border: 1px solid #444 !important;
+  fill: #888 !important;
+  margin-bottom: 8px; /* Add space between buttons */
+}
+
+.react-flow__controls-button:last-child {
+  margin-bottom: 0;
+}
+
+.react-flow__controls-button:hover {
+  background: #444 !important;
+  fill: #fff !important;
+}
+
+.react-flow__minimap {
+  background: #000000 !important;
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(0, 0, 0, 0.2) !important;
+}
+
+.react-flow__minimap-node {
+  fill: #555 !important;
+  stroke: none !important;
+}
+
+/* 节点选中状态 */
+.react-flow__node.selected .input-node,
+.react-flow__node.selected .conversation-node {
+  border-color: #FF0004 !important;
+}
+
+/* 移除所有不必要的动画和阴影 */
+.input-node,
+.conversation-node {
+  transition: none;
+}
+
+/* 确保没有白色背景 */
+* {
+  box-sizing: border-box;
+}
+
+.react-flow {
+  background: transparent !important;
+}
+
+.react-flow__pane {
+  background: transparent !important;
+}
+
+.react-flow__renderer {
+  background: transparent !important;
+}
+
+/* 确保输入节点没有默认背景 */
+.react-flow__node {
+  background: transparent !important;
+}
+
+.react-flow__node-input {
+  background: transparent !important;
+  border: none !important;
+}
