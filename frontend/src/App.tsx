@@ -277,8 +277,12 @@ function App() {
     });
 
     try {
-      // 使用流式API
-      const response = await fetch('http://localhost:8000/api/chat/stream', {
+      // 使用流式API - 根据环境自动选择API地址
+      const apiUrl = import.meta.env.PROD 
+        ? '/api/chat/stream'  // 生产环境使用相对路径
+        : 'http://localhost:8000/api/chat/stream';  // 开发环境使用本地地址
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

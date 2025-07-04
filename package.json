@@ -1,0 +1,17 @@
+{
+  "name": "rootie",
+  "version": "1.0.0",
+  "description": "AI-powered conversation tree application",
+  "main": "index.js",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "dev": "cd frontend && npm run dev",
+    "start": "cd frontend && npm run preview"
+  },
+  "keywords": ["ai", "conversation", "react", "fastapi"],
+  "author": "CyanLee",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
