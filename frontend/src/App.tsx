@@ -65,7 +65,7 @@ const ConversationNode = ({ data }: any) => {
         <div className="answer-content nodrag">{data.answer}</div>
         <div className="node-actions">
           <span>💬</span>
-          <span>🔄</span>
+          <span>重试</span>
           <button 
             className="branch-button"
             onClick={() => data.onCreateBranch && data.onCreateBranch()}
@@ -242,13 +242,17 @@ function App() {
     [setEdges, nodes]
   );
 
-    const handleSend = useCallback((inputId: string, text: string, inputElement: HTMLInputElement) => {
+    const handleSend = useCallback(async (inputId: string, text: string, inputElement: HTMLInputElement) => {
     if (isProcessing.current) return;
     isProcessing.current = true;
 
     if (inputElement) {
       inputElement.value = '';
     }
+
+    // 获取父节点ID（用于构建上下文）
+    const parentNodeId = edges.find(edge => edge.target === inputId)?.source || null;
+    console.log('发送消息，父节点ID:', parentNodeId);
 
     // 第一步：将输入节点转换为对话节点
     setNodes((currentNodes) => {
@@ -272,63 +276,144 @@ function App() {
       return currentNodes.map(node => (node.id === currentInputNode.id ? newConversationNode : node));
     });
 
-    // 第二步：2秒后更新答案并添加新输入框
-    setTimeout(() => {
-      const newInputId = getNextId();
+    try {
+      // 使用流式API
+      const response = await fetch('http://localhost:8000/api/chat/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: text,
+          parent_node_id: parentNodeId,
+          node_id: inputId  // 传递当前节点ID
+        })
+      });
 
-      setNodes(currentNodes => {
-        const answeredNodes = currentNodes.map(node =>
-          node.id === inputId
-            ? { ...node, data: { ...node.data, answer: `根据您的需求，结合受欢迎度、轻量级、易于扩展技术栈匹配，推荐以下项目：\n\n前端（React）推荐\n1. assistant-ui/assistant-ui\n• 介绍：一个 TypeScript/React 的 AI 聊天 UI 组件库，专注于 AI 对话，支持自定义后端集成。代码结构清晰，易于二次开发和集成。\n• 优点：轻量、受欢迎、易定制，适合搭建定制化 AI 对话产品。`, onCreateBranch: () => handleCreateBranchRef.current?.(inputId) } }
-            : node
-        );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-        const conversationNode = answeredNodes.find(node => node.id === inputId);
-        if (!conversationNode) {
-          isProcessing.current = false;
-          return answeredNodes;
-        }
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('无法获取响应流');
+      }
 
-        // Get the actual height of the rendered conversation node
-        const nodeElement = document.querySelector(`.react-flow__node[data-id="${inputId}"]`);
-        const nodeHeight = (nodeElement as HTMLElement)?.offsetHeight || 450; // Fallback height
-        const verticalGap = 200; // Gap between nodes
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let streamingAnswer = '';
+      let newInputId = '';
+      let nodeCreated = false;
 
-        const newInputNode: Node = {
-          id: newInputId,
-          type: 'input',
-          data: {
-            onSend: (id: string, txt: string, el: HTMLInputElement) => {
-              handleSendRef.current?.(id, txt, el);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.type === 'init') {
+                console.log('初始化节点:', data.node_id);
+                // 节点已在前面创建，这里可以记录ID
+              } else if (data.type === 'chunk') {
+                streamingAnswer += data.content;
+                // 实时更新答案
+                setNodes(currentNodes => 
+                  currentNodes.map(node =>
+                    node.id === inputId
+                      ? { ...node, data: { ...node.data, answer: streamingAnswer } }
+                      : node
+                  )
+                );
+              } else if (data.type === 'complete') {
+                console.log('流式响应完成');
+                streamingAnswer = data.full_response;
+                
+                // 创建新的输入节点
+                if (!nodeCreated) {
+                  newInputId = getNextId();
+                  nodeCreated = true;
+                  
+                  setNodes(currentNodes => {
+                    const answeredNodes = currentNodes.map(node =>
+                      node.id === inputId
+                        ? { ...node, data: { ...node.data, answer: streamingAnswer, onCreateBranch: () => handleCreateBranchRef.current?.(inputId) } }
+                        : node
+                    );
+
+                    const conversationNode = answeredNodes.find(node => node.id === inputId);
+                    if (!conversationNode) {
+                      return answeredNodes;
+                    }
+
+                    // Get the actual height of the rendered conversation node
+                    const nodeElement = document.querySelector(`.react-flow__node[data-id="${inputId}"]`);
+                    const nodeHeight = (nodeElement as HTMLElement)?.offsetHeight || 450;
+                    const verticalGap = 200;
+
+                    const newInputNode: Node = {
+                      id: newInputId,
+                      type: 'input',
+                      data: {
+                        onSend: (id: string, txt: string, el: HTMLInputElement) => {
+                          handleSendRef.current?.(id, txt, el);
+                        }
+                      },
+                      position: { 
+                        x: conversationNode.position.x, 
+                        y: conversationNode.position.y + nodeHeight + verticalGap 
+                      },
+                    };
+
+                    return [...answeredNodes, newInputNode];
+                  });
+
+                  setEdges(currentEdges => {
+                    const newEdge: Edge = {
+                      id: `${inputId}-${newInputId}`,
+                      source: inputId,
+                      target: newInputId,
+                      animated: true,
+                      style: { stroke: '#ff4444', strokeWidth: 2 },
+                      markerEnd: {
+                        type: MarkerType.ArrowClosed,
+                        color: '#ff4444',
+                      },
+                    };
+                    return [...currentEdges, newEdge];
+                  });
+                }
+              } else if (data.type === 'error') {
+                throw new Error(data.error);
+              }
+            } catch (parseError) {
+              console.error('解析流式数据失败:', parseError);
             }
-          },
-          position: { 
-            x: conversationNode.position.x, 
-            y: conversationNode.position.y + nodeHeight + verticalGap 
-          },
-        };
+          }
+        }
+      }
 
-        return [...answeredNodes, newInputNode];
-      });
-
-      setEdges(currentEdges => {
-        const newEdge: Edge = {
-          id: `${inputId}-${newInputId}`,
-          source: inputId,
-          target: newInputId,
-          animated: true,
-          style: { stroke: '#ff4444', strokeWidth: 2 },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: '#ff4444',
-          },
-        };
-        return [...currentEdges, newEdge];
-      });
-
-      isProcessing.current = false; // Reset the lock
-    }, 2000);
-  }, [setNodes, setEdges]);
+    } catch (error) {
+      console.error('API调用失败:', error);
+      
+      // 显示错误信息
+      setNodes(currentNodes => 
+        currentNodes.map(node =>
+          node.id === inputId
+            ? { ...node, data: { ...node.data, answer: `抱歉，发生了错误：${error instanceof Error ? error.message : '未知错误'}。请检查后端服务是否正常运行。`, onCreateBranch: () => handleCreateBranchRef.current?.(inputId) } }
+            : node
+        )
+      );
+    } finally {
+      isProcessing.current = false;
+    }
+  }, [setNodes, setEdges, edges]);
 
   handleSendRef.current = handleSend;
   handleCreateBranchRef.current = handleCreateBranch;
@@ -343,7 +428,7 @@ function App() {
             handleSendRef.current?.(inputId, text, inputElement);
           }
         },
-        position: { x: 300, y: 300 },
+        position: { x: 400, y: 300 },
       }
     ]);
   }, []);
@@ -377,7 +462,7 @@ function App() {
         connectionMode={ConnectionMode.Loose}
         noDragClassName='nodrag'
         fitView
-        fitViewOptions={{ maxZoom: 0.75 }}
+        fitViewOptions={{ maxZoom: 0.8 }}
       >
         <MiniMap />
         <Controls />

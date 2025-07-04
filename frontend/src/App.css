@@ -91,7 +91,7 @@ body {
 /* 合并的问答节点样式 - 简洁设计 */
 .conversation-node {
   background: #000000;
-  border: 2px solid #444;
+  border: 4px solid #444;
   border-radius: 20px;
   padding: 20px;
   width: 600px; /* 固定宽度 */
@@ -152,15 +152,15 @@ body {
 
 .node-actions span {
   cursor: pointer;
-  font-size: 16px;
+  font-size: 12px;
   padding: 4px;
   border-radius: 4px;
   transition: background-color 0.2s ease;
-  background: rgba(255, 68, 68, 0.1);
+  background: rgba(87, 87, 87, 0.1);
 }
 
 .node-actions span:hover {
-  background: rgba(255, 68, 68, 0.2);
+  background: rgba(87, 87, 87, 0.2);
 }
 
 /* 话题分支按钮样式 */
