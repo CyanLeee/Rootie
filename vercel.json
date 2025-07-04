@@ -12,8 +12,8 @@
       "config": { "maxDuration": 30 }
     }
   ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/index.py" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.py" },
+    { "source": "/((?!api/|assets/).*)", "destination": "/index.html" }
   ]
 }
