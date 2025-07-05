@@ -45,12 +45,46 @@
 .chat-history-item {
   padding: 8px 10px;
   margin-bottom: 10px;
-  border-radius: 10px;
-  cursor: pointer;
+  border-radius: 5px;
   font-size: 14px;
   transition: background-color 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .chat-history-item:hover {
   background-color: #222222;
+}
+
+.chat-history-item.active {
+  background-color: #bbbbbb;
+  color: rgb(0, 0, 0);
+}
+
+.chat-history-item.active:hover {
+  background-color: #bbbbbb;
+  color: rgb(0, 0, 0);
+}
+
+.chat-title {
+  flex-grow: 1;
+  cursor: pointer;
+  padding-right: 10px;
+}
+
+.delete-button {
+  background-color: #ff000400;
+  color: #ff4a4a;
+  border: none;
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.delete-button:hover {
+  opacity: 0.8;
 }
