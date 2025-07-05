@@ -277,6 +277,15 @@ function App() {
     });
 
     try {
+      // 准备要发送到后端的节点数据
+      const nodesForBackend = nodes.map(node => ({
+        id: node.id,
+        user_prompt: node.data.question || '', // 确保字段存在
+        ai_response: node.data.answer || '', // 确保字段存在
+        parent_node_id: edges.find(e => e.target === node.id)?.source || null,
+        created_at: new Date().toISOString(), // 或者使用节点上已有的时间戳
+      }));
+
       // 使用流式API
       const response = await fetch('http://localhost:8000/api/chat/stream', {
         method: 'POST',
@@ -286,7 +295,8 @@ function App() {
         body: JSON.stringify({
           prompt: text,
           parent_node_id: parentNodeId,
-          node_id: inputId  // 传递当前节点ID
+          node_id: inputId,  // 传递当前节点ID
+          nodes: nodesForBackend, // 发送所有节点数据
         })
       });
 
@@ -307,97 +317,113 @@ function App() {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+        if (value) {
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              
-              if (data.type === 'init') {
-                console.log('初始化节点:', data.node_id);
-                // 节点已在前面创建，这里可以记录ID
-              } else if (data.type === 'chunk') {
-                streamingAnswer += data.content;
-                // 实时更新答案
-                setNodes(currentNodes => 
-                  currentNodes.map(node =>
-                    node.id === inputId
-                      ? { ...node, data: { ...node.data, answer: streamingAnswer } }
-                      : node
-                  )
-                );
-              } else if (data.type === 'complete') {
-                console.log('流式响应完成');
-                streamingAnswer = data.full_response;
-                
-                // 创建新的输入节点
-                if (!nodeCreated) {
-                  newInputId = getNextId();
-                  nodeCreated = true;
-                  
-                  setNodes(currentNodes => {
-                    const answeredNodes = currentNodes.map(node =>
-                      node.id === inputId
-                        ? { ...node, data: { ...node.data, answer: streamingAnswer, onCreateBranch: () => handleCreateBranchRef.current?.(inputId) } }
-                        : node
-                    );
-
-                    const conversationNode = answeredNodes.find(node => node.id === inputId);
-                    if (!conversationNode) {
-                      return answeredNodes;
-                    }
-
-                    // Get the actual height of the rendered conversation node
-                    const nodeElement = document.querySelector(`.react-flow__node[data-id="${inputId}"]`);
-                    const nodeHeight = (nodeElement as HTMLElement)?.offsetHeight || 450;
-                    const verticalGap = 200;
-
-                    const newInputNode: Node = {
-                      id: newInputId,
-                      type: 'input',
-                      data: {
-                        onSend: (id: string, txt: string, el: HTMLInputElement) => {
-                          handleSendRef.current?.(id, txt, el);
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        
+                        if (data.type === 'init') {
+                            console.log('初始化节点:', data.node_id);
+                        } else if (data.type === 'chunk') {
+                            streamingAnswer += data.content;
+                            setNodes(currentNodes => 
+                                currentNodes.map(node =>
+                                    node.id === inputId
+                                        ? { ...node, data: { ...node.data, answer: streamingAnswer } }
+                                        : node
+                                )
+                            );
                         }
-                      },
-                      position: { 
-                        x: conversationNode.position.x, 
-                        y: conversationNode.position.y + nodeHeight + verticalGap 
-                      },
-                    };
-
-                    return [...answeredNodes, newInputNode];
-                  });
-
-                  setEdges(currentEdges => {
-                    const newEdge: Edge = {
-                      id: `${inputId}-${newInputId}`,
-                      source: inputId,
-                      target: newInputId,
-                      animated: true,
-                      style: { stroke: '#ff4444', strokeWidth: 2 },
-                      markerEnd: {
-                        type: MarkerType.ArrowClosed,
-                        color: '#ff4444',
-                      },
-                    };
-                    return [...currentEdges, newEdge];
-                  });
+                    } catch (error) {
+                        console.error('解析流数据失败:', error, '原始行:', line);
+                    }
                 }
-              } else if (data.type === 'error') {
-                throw new Error(data.error);
-              }
-            } catch (parseError) {
-              console.error('解析流式数据失败:', parseError);
             }
-          }
         }
-      }
+
+        if (done) {
+            console.log('流式响应完成');
+
+            // 确保在创建新节点之前，最终的答案被设置
+            setNodes(currentNodes => 
+                currentNodes.map(node =>
+                    node.id === inputId
+                        ? { ...node, data: { ...node.data, answer: streamingAnswer } }
+                        : node
+                )
+            );
+
+            if (!nodeCreated) {
+                const newInputId = getNextId();
+                nodeCreated = true;
+
+                setTimeout(() => {
+                    const sourceNodeElement = document.querySelector(`.react-flow__node[data-id="${inputId}"]`);
+                    const sourceNodeHeight = (sourceNodeElement as HTMLElement)?.offsetHeight || 250;
+                    const verticalGap = 50;
+
+                    setNodes(currentNodes => {
+                        const sourceNode = currentNodes.find(n => n.id === inputId);
+                        if (!sourceNode) return currentNodes;
+
+                        const finalNode: Node = {
+                            ...sourceNode,
+                            data: {
+                                ...sourceNode.data,
+                                answer: streamingAnswer,
+                                onCreateBranch: () => handleCreateBranchRef.current?.(inputId)
+                            }
+                        };
+
+                        const newInputNode: Node = {
+                            id: newInputId,
+                            type: 'input',
+                            data: {
+                                onSend: (id: string, txt: string, el: HTMLInputElement) => {
+                                    handleSendRef.current?.(id, txt, el);
+                                }
+                            },
+                            position: {
+                                x: sourceNode.position.x,
+                                y: sourceNode.position.y + sourceNodeHeight + verticalGap
+                            },
+                        };
+
+                        const updatedNodes = currentNodes.map(n => n.id === inputId ? finalNode : n);
+                        if (!updatedNodes.some(n => n.id === newInputId)) {
+                            return [...updatedNodes, newInputNode];
+                        }
+                        return updatedNodes;
+                    });
+
+                    setEdges(currentEdges => {
+                        if (currentEdges.some(e => e.id === `${inputId}-${newInputId}`)) {
+                            return currentEdges;
+                        }
+                        const newEdge: Edge = {
+                            id: `${inputId}-${newInputId}`,
+                            source: inputId,
+                            target: newInputId,
+                            animated: true,
+                            style: { stroke: '#ff4444', strokeWidth: 2 },
+                            markerEnd: {
+                                type: MarkerType.ArrowClosed,
+                                color: '#ff4444',
+                            },
+                        };
+                        return [...currentEdges, newEdge];
+                    });
+                }, 100);
+            }
+            break;
+        }
+    }
 
     } catch (error) {
       console.error('API调用失败:', error);
